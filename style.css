@@ -1,0 +1,52 @@
+body {
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	background-color: #202020;
+	color: white;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	margin: 0;
+}
+
+.container {
+	text-align: center;
+}
+
+button {
+	padding: 10px 20px;
+	margin: 5px;
+	cursor: pointer;
+	background-color: #4CAF50;
+	border: none;
+	color: white;
+	font-size: 1rem;
+	border-radius: 4px;
+}
+
+button:hover {
+	background-color: #45a049;
+}
+
+#gridContainer {
+	display: grid;
+	/* On définira les colonnes dynamiquement ou fixement ici */
+	grid-template-columns: repeat(30, 20px);
+	gap: 1px;
+	background-color: #333;
+	margin: 20px auto;
+	width: fit-content;
+	border: 5px solid #444;
+}
+
+.cell {
+	width: 20px;
+	height: 20px;
+	background-color: #000;
+	cursor: pointer;
+}
+
+.cell.alive {
+	background-color: #00ffcc; /* Couleur des cellules vivantes */
+	box-shadow: 0 0 5px #00ffcc;
+}
