@@ -1,4 +1,4 @@
-name: CI/CD Jeu de la Vie (Test -> Deploy -> Check)
+name: CI/CD Jeu de la Vie (Test -> Deploy -> Check -> Notify)
 
 on:
   push:
@@ -14,14 +14,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # --- ÉTAPE 1 : TESTS (CI) ---
+  # --- JOB 1 : TESTS ---
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-      # Test simple : Vérifier que les fichiers existent
       - name: Vérifier la structure du projet
         run: |
           if [ ! -f index.html ]; then echo "❌ Manque index.html"; exit 1; fi
@@ -29,8 +28,7 @@ jobs:
           if [ ! -f script.js ]; then echo "❌ Manque script.js"; exit 1; fi
           echo "✅ Fichiers présents."
 
-      # (Optionnel) Test de syntaxe HTML
-      # Vous pouvez retirer ce bloc si vous voulez juste le test de fichiers
+      # (Optionnel) Test HTMLHint
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -40,16 +38,15 @@ jobs:
           npm install -g htmlhint
           htmlhint index.html
 
-  # --- ÉTAPE 2 & 3 : DÉPLOIEMENT ET VÉRIFICATION (CD) ---
+  # --- JOB 2 : DÉPLOIEMENT, VERIF & NOTIFICATION ---
   deploy:
-    needs: test # IMPORTANT : On attend que 'test' soit validé
+    needs: test
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
-      # Préparation
       - name: Récupérer le code
         uses: actions/checkout@v4
       
@@ -61,18 +58,28 @@ jobs:
         with:
           path: '.'
       
-      # Le Déploiement réel
       - name: Déployer sur GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
-      # --- VÉRIFICATION FINALE (CURL) ---
-      
+      # --- VÉRIFICATION (CURL) ---
       - name: Attendre que le site soit prêt
         run: sleep 30
       
-      - name: Vérifier que le site répond (Curl)
+      - name: Vérifier que le site répond
         run: |
-          echo "Test de l'URL : ${{ steps.deployment.outputs.page_url }}"
           curl --fail ${{ steps.deployment.outputs.page_url }} || exit 1
-          echo "✅ Le Jeu de la Vie est en ligne et accessible !"
+          echo "✅ Le site est accessible."
+
+      # --- NOTIFICATION DE FIN ---
+      - name: 📢 Notification de Déploiement
+        run: |
+          echo "🚀 DÉPLOIEMENT RÉUSSI !"
+          echo "---------------------------------------------"
+          echo "🌐 URL du site      : ${{ steps.deployment.outputs.page_url }}"
+          echo "📅 Date             : $(date)"
+          echo "👤 Déployé par      : ${{ github.actor }}"
+          echo "🔢 Hash du Commit   : ${{ github.sha }}"
+          echo "📝 Message          : ${{ github.event.head_commit.message }}"
+          echo "🌿 Branche          : ${{ github.ref_name }}"
+          echo "---------------------------------------------"
