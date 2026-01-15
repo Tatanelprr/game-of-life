@@ -1,47 +1,67 @@
-name: Deploiement du Site Web
+name: Deploiement du Site Web avec Tests
 
-# DÉCLENCHEUR (CI)
-# Le workflow se lance quand on push sur la branche 'main'
 on:
   push:
     branches: ["main"]
 
-# PERMISSIONS
-# Nécessaire pour que le robot puisse écrire sur GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# CONCURRENCE
-# Annule le déploiement en cours si on en lance un nouveau immédiatement
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
-# TÂCHES (CD)
 jobs:
-  # Tâche 1 : Déploiement
+  # --- JOB 1 : TESTS (CI) ---
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Récupération du code
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      # 2. Test simple : Vérifier que les fichiers existent (Script Bash)
+      - name: Vérification présence fichiers
+        run: |
+          if [ ! -f index.html ]; then echo "❌ ERREUR: index.html manquant !"; exit 1; fi
+          if [ ! -f style.css ]; then echo "❌ ERREUR: style.css manquant !"; exit 1; fi
+          if [ ! -f script.js ]; then echo "❌ ERREUR: script.js manquant !"; exit 1; fi
+          echo "✅ Tous les fichiers critiques sont présents."
+
+      # 3. Installation d'un outil de test (HTMLHint) via Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installation du Linter HTML
+        run: npm install -g htmlhint
+
+      # 4. Exécution du test de syntaxe HTML
+      - name: Validation du code HTML
+        run: htmlhint index.html
+
+  # --- JOB 2 : DÉPLOIEMENT (CD) ---
   deploy:
+    # IMPORTANT : Ce job ne démarre que si 'test' a réussi !
+    needs: test  
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      # 1. Le robot récupère votre code
       - name: Checkout du code
         uses: actions/checkout@v4
-
-      # 2. Configuration de l'environnement Pages
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
-
-      # 3. Upload des fichiers (HTML/CSS/JS) vers le serveur GitHub
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Le point signifie "dossier racine"
-
-      # 4. Activation du site en ligne
+          path: '.'
+      
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
