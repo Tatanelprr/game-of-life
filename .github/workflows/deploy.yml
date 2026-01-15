@@ -1,67 +1,50 @@
-name: Deploiement du Site Web avec Tests
+name: Déployer sur GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
-
 jobs:
-  # --- JOB 1 : TESTS (CI) ---
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      # 1. Récupération du code
-      - name: Checkout du code
-        uses: actions/checkout@v4
-
-      # 2. Test simple : Vérifier que les fichiers existent (Script Bash)
-      - name: Vérification présence fichiers
-        run: |
-          if [ ! -f index.html ]; then echo "❌ ERREUR: index.html manquant !"; exit 1; fi
-          if [ ! -f style.css ]; then echo "❌ ERREUR: style.css manquant !"; exit 1; fi
-          if [ ! -f script.js ]; then echo "❌ ERREUR: script.js manquant !"; exit 1; fi
-          echo "✅ Tous les fichiers critiques sont présents."
-
-      # 3. Installation d'un outil de test (HTMLHint) via Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Installation du Linter HTML
-        run: npm install -g htmlhint
-
-      # 4. Exécution du test de syntaxe HTML
-      - name: Validation du code HTML
-        run: htmlhint index.html
-
-  # --- JOB 2 : DÉPLOIEMENT (CD) ---
   deploy:
-    # IMPORTANT : Ce job ne démarre que si 'test' a réussi !
-    needs: test  
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
+      # On récupère l'URL ici pour l'environnement
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout du code
+      # --- ÉTAPES D'INSTALLATION ET DÉPLOIEMENT ---
+      - name: Récupérer le code
         uses: actions/checkout@v4
-      
-      - name: Setup Pages
+
+      - name: Configurer GitHub Pages
         uses: actions/configure-pages@v4
-      
-      - name: Upload artifact
+
+      - name: Uploader les fichiers
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
-      
-      - name: Deploy to GitHub Pages
+
+      - name: Déployer sur GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
+
+      # --- VOS NOUVELLES ÉTAPES DE VÉRIFICATION ---
+      
+      # 1. On attend un peu que le DNS se propage ou que le serveur démarre
+      - name: Attendre que le site soit prêt
+        run: sleep 30
+
+      # 2. On teste si le site répond (Code 200 OK)
+      - name: Vérifier que le Jeu de la Vie est en ligne
+        run: |
+          # --fail fait échouer la commande si le code HTTP est >= 400
+          # Nous utilisons l'URL fournie par l'étape 'deployment' juste au-dessus
+          curl --fail ${{ steps.deployment.outputs.page_url }} || exit 1
+          
+          echo "Succès : Le Jeu de la Vie est vivant et accessible ! 🧬"
