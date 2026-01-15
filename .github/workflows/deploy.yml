@@ -1,8 +1,8 @@
-name: Deploiement du Site Web avec Tests
+name: CI/CD Jeu de la Vie (Test -> Deploy -> Check)
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
 
 permissions:
   contents: read
@@ -14,54 +14,65 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # --- JOB 1 : TESTS (CI) ---
+  # --- ÉTAPE 1 : TESTS (CI) ---
   test:
     runs-on: ubuntu-latest
     steps:
-      # 1. Récupération du code
-      - name: Checkout du code
+      - name: Récupérer le code
         uses: actions/checkout@v4
 
-      # 2. Test simple : Vérifier que les fichiers existent (Script Bash)
-      - name: Vérification présence fichiers
+      # Test simple : Vérifier que les fichiers existent
+      - name: Vérifier la structure du projet
         run: |
-          if [ ! -f index.html ]; then echo "❌ ERREUR: index.html manquant !"; exit 1; fi
-          if [ ! -f style.css ]; then echo "❌ ERREUR: style.css manquant !"; exit 1; fi
-          if [ ! -f script.js ]; then echo "❌ ERREUR: script.js manquant !"; exit 1; fi
-          echo "✅ Tous les fichiers critiques sont présents."
+          if [ ! -f index.html ]; then echo "❌ Manque index.html"; exit 1; fi
+          if [ ! -f style.css ]; then echo "❌ Manque style.css"; exit 1; fi
+          if [ ! -f script.js ]; then echo "❌ Manque script.js"; exit 1; fi
+          echo "✅ Fichiers présents."
 
-      # 3. Installation d'un outil de test (HTMLHint) via Node.js
+      # (Optionnel) Test de syntaxe HTML
+      # Vous pouvez retirer ce bloc si vous voulez juste le test de fichiers
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Installer et Lancer HTMLHint
+        run: |
+          npm install -g htmlhint
+          htmlhint index.html
 
-      - name: Installation du Linter HTML
-        run: npm install -g htmlhint
-
-      # 4. Exécution du test de syntaxe HTML
-      - name: Validation du code HTML
-        run: htmlhint index.html
-
-  # --- JOB 2 : DÉPLOIEMENT (CD) ---
+  # --- ÉTAPE 2 & 3 : DÉPLOIEMENT ET VÉRIFICATION (CD) ---
   deploy:
-    # IMPORTANT : Ce job ne démarre que si 'test' a réussi !
-    needs: test  
+    needs: test # IMPORTANT : On attend que 'test' soit validé
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout du code
+      # Préparation
+      - name: Récupérer le code
         uses: actions/checkout@v4
       
-      - name: Setup Pages
+      - name: Configurer GitHub Pages
         uses: actions/configure-pages@v4
       
-      - name: Upload artifact
+      - name: Uploader les fichiers
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
       
-      - name: Deploy to GitHub Pages
+      # Le Déploiement réel
+      - name: Déployer sur GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
+
+      # --- VÉRIFICATION FINALE (CURL) ---
+      
+      - name: Attendre que le site soit prêt
+        run: sleep 30
+      
+      - name: Vérifier que le site répond (Curl)
+        run: |
+          echo "Test de l'URL : ${{ steps.deployment.outputs.page_url }}"
+          curl --fail ${{ steps.deployment.outputs.page_url }} || exit 1
+          echo "✅ Le Jeu de la Vie est en ligne et accessible !"
