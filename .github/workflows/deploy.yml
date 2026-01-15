@@ -1,0 +1,47 @@
+name: Deploiement du Site Web
+
+# DÉCLENCHEUR (CI)
+# Le workflow se lance quand on push sur la branche 'main'
+on:
+  push:
+    branches: ["main"]
+
+# PERMISSIONS
+# Nécessaire pour que le robot puisse écrire sur GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# CONCURRENCE
+# Annule le déploiement en cours si on en lance un nouveau immédiatement
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+# TÂCHES (CD)
+jobs:
+  # Tâche 1 : Déploiement
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Le robot récupère votre code
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      # 2. Configuration de l'environnement Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # 3. Upload des fichiers (HTML/CSS/JS) vers le serveur GitHub
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.' # Le point signifie "dossier racine"
+
+      # 4. Activation du site en ligne
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
